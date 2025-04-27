@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Album gyűjtemény</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #0debf3; }
+    .album { margin-bottom: 30px; background: #fff; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; }
+    h1 { text-align: center; font-style: italic; text-transform: uppercase; }
+    .album-info { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; }
+    input { margin-right: 10px; }
+    button { margin-left: 5px; }
+    select { margin: 10px 0; padding: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Album gyűjtemény</h1>
+  
+  <div>
+    <input type="text" id="zenekar" placeholder="Zenekar neve" />
+    <input type="text" id="cim" placeholder="Album cím" />
+    <input type="number" id="ev" placeholder="Megjelenési év" />
+    <input type="text" id="mufaj" placeholder="Műfaj" />
+    <button id="hozzaadBtn">Új album hozzáadása</button>
+  </div>
+
+  <h2>Albumok</h2>
+  <select id="albumDropdown"></select>
+
+  <div id="albumok"></div>
+
+  <script>
+    const API_URL = "http://localhost:3000/album";
+    
+    // Új album hozzáadása
+    document.getElementById('hozzaadBtn').addEventListener('click', async () => {
+      const zenekar = document.getElementById('zenekar').value.trim();
+      const cim = document.getElementById('cim').value.trim();
+      const ev = parseInt(document.getElementById('ev').value);
+      const mufaj = document.getElementById('mufaj').value.trim();
+    
+      if (zenekar && cim && ev && mufaj) {
+        await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ zenekar, cim, ev, mufaj })
+        });
+        lekerAlbumok();
+      } else {
+        alert("Töltsd ki az összes mezőt!");
+      }
+    });
+    
+    // Albumok lekérdezése
+    async function lekerAlbumok() {
+      const res = await fetch(API_URL);
+      const adatok = await res.json();
+      frissitDropdown(adatok);
+    }
+    
+    // Legördülő menü frissítése
+    function frissitDropdown(adatok) {
+      const dropdown = document.getElementById("albumDropdown");
+      dropdown.innerHTML = "";
+    
+      adatok.forEach(({ id, cim }) => {
+        const option = document.createElement("option");
+        option.value = id;
+        option.textContent = cim;
+        dropdown.appendChild(option);
+      });
+    
+      if (adatok.length > 0) {
+        dropdown.value = adatok[0].id;
+      }
+    
+      // Fontos: legördülő változásakor megjelenítjük a kiválasztott albumot
+      dropdown.onchange = () => {
+        megjelenitAlbumok(adatok);
+      };
+    
+      // Oldal betöltésekor is megjelenítjük az elsőt
+      megjelenitAlbumok(adatok);
+    }
+    
+    // Kiválasztott album megjelenítése
+    function megjelenitAlbumok(adatok) {
+      const kontener = document.getElementById("albumok");
+      kontener.innerHTML = "";
+    
+      const valasztottAlbumId = document.getElementById('albumDropdown').value;
+    
+      const kivalasztottAlbum = adatok.find(album => album.id == valasztottAlbumId);
+    
+      if (kivalasztottAlbum) {
+        const { id, zenekar, cim, ev, mufaj } = kivalasztottAlbum;
+    
+        const albumDiv = document.createElement("div");
+        albumDiv.className = "album";
+    
+        const cimElem = document.createElement("h2");
+        cimElem.textContent = `Album: ${cim}`;
+        albumDiv.appendChild(cimElem);
+    
+        const infoDiv = document.createElement("div");
+        infoDiv.className = "album-info";
+        infoDiv.textContent = `Zenekar: ${zenekar}, Év: ${ev}, Műfaj: ${mufaj}`;
+        albumDiv.appendChild(infoDiv);
+    
+        const torles = document.createElement("button");
+        torles.textContent = "Törlés";
+        torles.onclick = async () => {
+          await fetch(`${API_URL}/${id}`, { method: "DELETE" });
+          lekerAlbumok();
+        };
+    
+        const szerkeszt = document.createElement("button");
+        szerkeszt.textContent = "Szerkesztés";
+        szerkeszt.onclick = async () => {
+          const ujNev = prompt("Új album neve:", cim);
+          if (ujNev) {
+            await fetch(`${API_URL}/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ zenekar, cim: ujNev, ev, mufaj })
+            });
+            lekerAlbumok();
+          }
+        };
+    
+        albumDiv.append(szerkeszt, torles);
+        kontener.appendChild(albumDiv);
+      }
+    }
+    
+    // Oldal betöltésekor automatikusan lekéri az albumokat
+    lekerAlbumok();
+    </script>
+    
+</body>
+</html>
